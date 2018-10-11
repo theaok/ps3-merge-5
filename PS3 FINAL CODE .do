@@ -39,6 +39,8 @@ save dayMoYr, replace
 insheet using https://raw.githubusercontent.com/rachelwagner/ps3-merge-5/master/usholidays.csv,clear name
  //2018-02-19
  ta date in 1/100
+  //always before counting sort
+ sort date
  count if date==date[_n-1]
  l if date==date[_n-1]
  drop if date=="1989-11-11" & v1==327
@@ -48,21 +50,51 @@ merge 1:m date using dayMoYr
 l date if _merge==1
 ta date if _merge==2
 
-drop if _merge==2
+//the goodreads data is the most importan one, shouldnt drop from there, but from holidatys
+drop if _merge==1
 sort booid
-drop if booid==booid[_n-1]
+//drop if booid==booid[_n-1]
 drop _merge
 
+save goodreads_holiday, replace //maybe more parsimoinuious
 save goodreadsholidaymerge, replace 
 
 //Merge booid with goodreadsholidays :)
 use https://github.com/rachelwagner/ps3-merge-5/raw/master/ratingsgoodbooksample.dta, clear
 rename book_id booid
 cap drop _merge //supress error 
-merge m:1 booid using goodreadsholidaymerge
+
+//------------------------------------
+//figuring out if it is unique:
+sort booid
+count if booid==booid[_n-1]
+sort user_id
+count if user_id==user_id[_n-1]
+sort user_id booid
+edit
+sort  booid user_id
+edit
+//need to collapse to merge it!
+preserve
+collapse rating, by(user_id)
+save ratingUser, replace
+restore //go back to preserved data
+collapse rating, by(booid)
+save ratingBook, replace
+
+//--------------------------------------
+use ratingBook,clear
+merge 1:m booid using goodreadsholidaymerge
+drop if _merge==1 //because master is 
+//additonal or supreflous dataset abd whatever
+//doesnt match from there is useless
+//--------------------------------
+//and then just mergre with the above
+
+//merge m:1 booid using goodreadsholidaymerge
 
 
-save goodreadsholidaybooidmerge, replace 
+//save goodreadsholidaybooidmerge, replace 
 
 //investigating why so many unmatched obs 
 l booid in 1/100 if _merge==1 //repeated obs because there's going to be reviews on the same bookid
